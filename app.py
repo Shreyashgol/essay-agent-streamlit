@@ -2,8 +2,8 @@ import streamlit as st
 from typing import List, TypedDict
 from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_community.tools import DuckDuckGoSearchResults
 from langgraph.graph import StateGraph, END
+from duckduckgo_search import DDGS
 from dotenv import load_dotenv
 import json
 import os 
@@ -15,14 +15,40 @@ st.set_page_config(page_title="AI Essay Agent", page_icon="📝", layout="center
 st.title("📝 Autonomous Essay Writing Agent")
 st.markdown("Enter a topic, and watch the agent research, draft, critique, and polish a final essay.")
 
-# Retrieve API key securely from Streamlit secrets
-groq_api_key = os.getenv("groq_api")
+def get_groq_api_key() -> str | None:
+    return (
+        st.secrets.get("groq_api")
+        or os.getenv("groq_api")
+        or os.getenv("GROQ_API_KEY")
+    )
+
+
+def run_search(query: str, max_results: int = 5) -> str:
+    results = DDGS().text(query, max_results=max_results)
+    if not results:
+        return "No results returned."
+
+    formatted_results = []
+    for index, item in enumerate(results, start=1):
+        title = item.get("title", "Untitled")
+        link = item.get("href", "No link available")
+        snippet = item.get("body", "No summary available")
+        formatted_results.append(
+            f"{index}. {title}\nURL: {link}\nSnippet: {snippet}"
+        )
+    return "\n\n".join(formatted_results)
+
+
+groq_api_key = get_groq_api_key()
+if not groq_api_key:
+    st.error("Missing Groq API key. Add `groq_api` to Streamlit secrets or environment variables.")
+    st.stop()
+
 llm = ChatGroq(
     model = 'llama-3.3-70b-versatile',
     api_key = groq_api_key,
     temperature = 0
 )
-search_tool = DuckDuckGoSearchResults()
 
 # Define State
 class AgentState(TypedDict):
@@ -67,7 +93,7 @@ def web_search(state: AgentState):
     for term in state["search_terms"]:
         print(f"Searching for: {term}")
         try:
-            result = search_tool.run(term)
+            result = run_search(term)
             raw_results.append(f"Source Query: '{term}'\nResults:\n{result}\n")
         except Exception as e:
             print(f"Search failed for {term}: {e}")
