@@ -19,7 +19,7 @@ def get_groq_api_key() -> str | None:
     return (
         st.secrets.get("groq_api")
         or os.getenv("groq_api")
-        or os.getenv("GROQ_API_KEY")
+        or os.getenv("groq_api")
     )
 
 
