@@ -227,7 +227,7 @@ if st.button("Generate Essay", type="primary"):
     else:
         # Use st.status to show the user what node is currently running
         with st.status("Initializing Agent Workflows...", expanded=True) as status_box:
-            final_state = None
+            final_state = {"topic": topic}
             
             # Stream the graph execution
             for event in agent_app.stream({"topic": topic}):
@@ -235,18 +235,21 @@ if st.button("Generate Essay", type="primary"):
                     # Format the node name for the UI (e.g., 'web_researcher' -> 'Web Researcher')
                     formatted_name = node_name.replace("_", " ").title()
                     st.write(f"✅ Completed step: **{formatted_name}**")
-                    final_state = state_update # Keep track of the latest state
+                    final_state.update(state_update)
             
             status_box.update(label="Essay successfully generated!", state="complete", expanded=False)
         
         # Display the final output
         st.divider()
         st.subheader("Final Draft")
-        st.write(final_state["final_draft"])
+        if "final_draft" in final_state:
+            st.write(final_state["final_draft"])
+        else:
+            st.error("The agent completed without producing a final draft.")
         
         # Optional: Add an expander to let the user see the agent's internal workings
         with st.expander("🔍 View Agent's Internal Research & Critique"):
             st.markdown("**Research Notes:**")
-            st.write(final_state["research_data"])
+            st.write(final_state.get("research_data", "Research notes were not captured."))
             st.markdown("**Editor's Critique:**")
-            st.write(final_state["critique"])
+            st.write(final_state.get("critique", "Critique was not captured."))
